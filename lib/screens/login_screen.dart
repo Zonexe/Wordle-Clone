@@ -1,24 +1,16 @@
 import 'package:flutter/material.dart';
-import '../utils/user_storage.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'register_screen.dart';
 import 'home_menu_screen.dart';
 
 class LoginScreen extends StatelessWidget {
-  final TextEditingController _loginController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
   // Цвета
   final Color backgroundColor = Color(0xFF9381FF); // Задний фон
   final Color buttonColor = Color(0xFFB8B8FF); // Цвет кнопок
   final Color textColor = Color(0xFFFFFFFF); // Белый цвет текста
-
-  // Регулярное выражение для проверки email
-  final RegExp emailRegex = RegExp(
-    r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-  );
-
-  // Ключ для формы
-  final _formKey = GlobalKey<FormState>();
 
   // Метод для отображения информации о приложении
   void _showAboutDialog(BuildContext context) {
@@ -71,8 +63,8 @@ class LoginScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: backgroundColor, // Цвет AppBar
-        elevation: 0, // Убираем тень под AppBar
+        backgroundColor: backgroundColor,
+        elevation: 0,
         actions: [
           IconButton(
             icon: Icon(Icons.info_outline, color: textColor),
@@ -81,32 +73,30 @@ class LoginScreen extends StatelessWidget {
         ],
       ),
       body: Container(
-        color: backgroundColor, // Задний фон
+        color: backgroundColor,
         padding: const EdgeInsets.all(16.0),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Заголовок "Вход" в центре экрана
             Text(
               'Вход',
               style: TextStyle(
                 color: textColor,
-                fontSize: 32, // Увеличиваем размер шрифта
-                fontWeight: FontWeight.bold, // Жирный шрифт
+                fontSize: 32,
+                fontWeight: FontWeight.bold,
               ),
             ),
             SizedBox(height: 20),
-            // Иконка входа
             Icon(
-              Icons.login, // Иконка входа
-              size: 100, // Увеличенный размер
+              Icons.login,
+              size: 100,
               color: textColor,
             ),
             SizedBox(height: 20),
             TextField(
-              controller: _loginController,
+              controller: _emailController,
               decoration: InputDecoration(
-                labelText: 'Никнейм или Email',
+                labelText: 'Email',
                 labelStyle: TextStyle(color: textColor),
                 border: OutlineInputBorder(
                   borderSide: BorderSide(color: textColor),
@@ -146,27 +136,35 @@ class LoginScreen extends StatelessWidget {
             SizedBox(height: 24.0),
             ElevatedButton(
               onPressed: () async {
-                final login = _loginController.text.trim();
+                final email = _emailController.text.trim();
                 final password = _passwordController.text.trim();
 
-                if (await UserStorage.checkUser(login, password)) {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (context) => HomeMenuScreen()),
+                try {
+                  final UserCredential userCredential =
+                  await FirebaseAuth.instance.signInWithEmailAndPassword(
+                    email: email,
+                    password: password,
                   );
-                } else {
+
+                  if (userCredential.user != null) {
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => HomeMenuScreen()),
+                    );
+                  }
+                } on FirebaseAuthException catch (e) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Неверный логин или пароль')),
+                    SnackBar(content: Text('Неверный email или пароль')),
                   );
                 }
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: buttonColor,
-                foregroundColor: textColor, // Белый цвет текста кнопки
+                foregroundColor: textColor,
                 padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 textStyle: TextStyle(
-                  fontSize: 18, // Увеличиваем размер шрифта
-                  fontWeight: FontWeight.bold, // Жирный шрифт
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
               child: Text('Войти'),
@@ -182,9 +180,9 @@ class LoginScreen extends StatelessWidget {
               child: Text(
                 'Нет аккаунта? Зарегистрируйтесь',
                 style: TextStyle(
-                  color: textColor, // Белый цвет текста
-                  fontSize: 16, // Увеличиваем размер шрифта
-                  fontWeight: FontWeight.bold, // Жирный шрифт
+                  color: textColor,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),

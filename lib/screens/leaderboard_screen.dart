@@ -12,22 +12,17 @@ class LeaderboardScreen extends StatelessWidget {
       ),
       body: Container(
         color: Color(0xFF9381FF),
-        child: FutureBuilder(
-          future: FirebaseDatabase.instance
-              .ref()
-              .child('leaderboard')
-              .orderByValue()
-              .get(),
+        child: FutureBuilder<Map<String, dynamic>>(
+          future: _getLeaderboardWithNicknames(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return Center(child: CircularProgressIndicator());
             } else if (snapshot.hasError) {
-              return Center(child: Text('Ошибка загрузки данных'));
-            } else if (!snapshot.hasData || snapshot.data!.value == null) {
+              return Center(child: Text('Ошибка загрузки данных: ${snapshot.error}'));
+            } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
               return Center(child: Text('Нет данных'));
             } else {
-              final leaderboardData =
-              Map<String, dynamic>.from(snapshot.data!.value as Map);
+              final leaderboardData = snapshot.data!;
               final sortedLeaderboard = leaderboardData.entries.toList()
                 ..sort((a, b) => b.value.compareTo(a.value));
 
@@ -52,5 +47,39 @@ class LeaderboardScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  // Метод для получения топа игроков с никнеймами
+  Future<Map<String, dynamic>> _getLeaderboardWithNicknames() async {
+    final leaderboardSnapshot = await FirebaseDatabase.instance
+        .ref()
+        .child('leaderboard')
+        .orderByValue()
+        .limitToLast(10)
+        .get();
+
+    if (!leaderboardSnapshot.exists) {
+      return {};
+    }
+
+    final leaderboardData = Map<String, dynamic>.from(leaderboardSnapshot.value as Map);
+    final leaderboardWithNicknames = <String, dynamic>{};
+
+    for (final userId in leaderboardData.keys) {
+      final userSnapshot = await FirebaseDatabase.instance
+          .ref()
+          .child('users')
+          .child(userId)
+          .get();
+
+      if (userSnapshot.exists) {
+        final nickname = userSnapshot.child('nickname').value as String? ?? 'Аноним';
+        leaderboardWithNicknames[nickname] = leaderboardData[userId];
+      } else {
+        leaderboardWithNicknames['Аноним'] = leaderboardData[userId];
+      }
+    }
+
+    return leaderboardWithNicknames;
   }
 }

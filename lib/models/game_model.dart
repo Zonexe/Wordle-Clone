@@ -1,16 +1,14 @@
 import 'dart:math';
-import 'package:firebase_database/firebase_database.dart'; // Импортируем Firebase Database
-import 'package:firebase_auth/firebase_auth.dart'; // Импортируем Firebase Auth
+import 'package:firebase_database/firebase_database.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../utils/words_list.dart';
 
 class GameModel {
   List<String> _letters = List.filled(30, ''); // 5x6 grid (5 columns, 6 rows)
   String _targetWord = ''; // Слово, которое нужно угадать
   List<bool> _correctLetters = List.filled(30, false); // Правильные буквы
-  List<bool> _lettersInWord =
-  List.filled(30, false); // Буквы в слове, но не на своих местах
-  List<bool> _isRowChecked =
-  List.filled(6, false); // Проверена ли строка (6 строк)
+  List<bool> _lettersInWord = List.filled(30, false); // Буквы в слове, но не на своих местах
+  List<bool> _isRowChecked = List.filled(6, false); // Проверена ли строка (6 строк)
   int _currentRow = 0; // Текущая строка (0-5)
   int _currentColumn = 0; // Текущая колонка в строке (0-4)
   bool _isRowLocked = false; // Заблокирована ли текущая строка
@@ -19,16 +17,14 @@ class GameModel {
   int get currentRow => _currentRow;
 
   GameModel() {
-    _targetWord = _getRandomWord()
-        .toUpperCase(); // Убедимся, что слово в верхнем регистре
+    _targetWord = _getRandomWord().toUpperCase(); // Убедимся, что слово в верхнем регистре
     print('Загаданное слово: $_targetWord'); // Отладочный вывод
   }
 
   // Метод для получения случайного слова из списка
   String _getRandomWord() {
     final random = Random();
-    return wordsList[
-    random.nextInt(wordsList.length)]; // Выбираем случайное слово из списка
+    return wordsList[random.nextInt(wordsList.length)]; // Выбираем случайное слово из списка
   }
 
   // Получить букву по индексу
@@ -108,11 +104,11 @@ class GameModel {
     }
   }
 
+  // Обработка нажатия Backspace
   void handleBackspace() {
     if (!_isRowLocked && _currentColumn > 0) {
       // Проверяем, не заблокирована ли строка
-      int index =
-          _currentRow * 5 + _currentColumn - 1; // Индекс последней буквы
+      int index = _currentRow * 5 + _currentColumn - 1; // Индекс последней буквы
       _letters[index] = ''; // Удаляем букву
       _currentColumn--; // Уменьшаем текущую колонку
     }
@@ -120,35 +116,50 @@ class GameModel {
 
   // Метод для обновления очков пользователя
   Future<void> _updateUserScore(int attempts) async {
-    final userId = FirebaseAuth.instance.currentUser?.uid;
-    if (userId == null) return;
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw Exception("Пользователь не аутентифицирован");
+    }
 
+    final userId = user.uid;
     final dbRef = FirebaseDatabase.instance.ref().child('users').child(userId);
     final snapshot = await dbRef.get();
 
+    int currentScore = 0;
+    int wordsGuessed = 0;
+    List<dynamic> attemptsList = [];
+
     if (snapshot.exists) {
-      int currentScore = snapshot.child('score').value as int? ?? 0;
-      int wordsGuessed = snapshot.child('wordsGuessed').value as int? ?? 0;
-
-      int points = 0;
-      if (attempts <= 6) {
-        points = 7 - attempts; // 6, 5, 4, 3, 2, 1
-      } else {
-        points = -2; // Не угадал слово
-      }
-
-      currentScore += points;
-      wordsGuessed += 1;
-
-      await dbRef.update({
-        'score': currentScore,
-        'wordsGuessed': wordsGuessed,
-        'attempts/${_targetWord.toLowerCase()}': attempts,
-      });
-
-      // Обновляем топ игроков
-      final leaderboardRef = FirebaseDatabase.instance.ref().child('leaderboard');
-      await leaderboardRef.child(userId).set(currentScore);
+      currentScore = snapshot.child('score').value as int? ?? 0;
+      wordsGuessed = snapshot.child('wordsGuessed').value as int? ?? 0;
+      attemptsList = List<dynamic>.from(snapshot.child('attempts').value as List? ?? []);
     }
+
+    int points = 0;
+    if (attempts <= 6) {
+      points = 7 - attempts; // 6, 5, 4, 3, 2, 1
+    } else {
+      points = -2; // Не угадал слово
+    }
+
+    currentScore += points;
+    wordsGuessed += 1;
+
+    // Добавляем новую попытку
+    attemptsList.add({
+      'word': _targetWord.toLowerCase(),
+      'attempts': attempts
+    });
+
+    // Обновляем данные пользователя
+    await dbRef.update({
+      'score': currentScore,
+      'wordsGuessed': wordsGuessed,
+      'attempts': attemptsList,
+    });
+
+    // Обновляем таблицу лидеров
+    final leaderboardRef = FirebaseDatabase.instance.ref().child('leaderboard').child(userId);
+    await leaderboardRef.set(currentScore); // Только очки
   }
 }

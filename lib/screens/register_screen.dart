@@ -1,56 +1,107 @@
 import 'package:flutter/material.dart';
-import '../utils/user_storage.dart';
-import 'login_screen.dart'; // Импортируем экран входа
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
+import 'login_screen.dart';
 
-class RegisterScreen extends StatelessWidget {
+class RegisterScreen extends StatefulWidget {
+  @override
+  _RegisterScreenState createState() => _RegisterScreenState();
+}
+
+class _RegisterScreenState extends State<RegisterScreen> {
+  final _formKey = GlobalKey<FormState>();
   final TextEditingController _nicknameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  final TextEditingController _confirmPasswordController =
-  TextEditingController();
+  final TextEditingController _confirmPasswordController = TextEditingController();
 
   // Цвета
-  final Color backgroundColor = Color(0xFF9381FF); // Задний фон
-  final Color buttonColor = Color(0xFFB8B8FF); // Цвет кнопок
-  final Color textColor = Color(0xFFFFFFFF); // Белый цвет текста
+  final Color backgroundColor = Color(0xFF9381FF);
+  final Color buttonColor = Color(0xFFB8B8FF);
+  final Color textColor = Color(0xFFFFFFFF);
 
-  // Регулярное выражение для проверки email
-  final RegExp emailRegex = RegExp(
-    r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$',
-  );
+  // Регистрация пользователя
+  Future<void> _registerUser() async {
+    if (_formKey.currentState!.validate()) {
+      final String nickname = _nicknameController.text.trim();
+      final String email = _emailController.text.trim();
+      final String password = _passwordController.text.trim();
 
-  // Ключ для формы
-  final _formKey = GlobalKey<FormState>();
+      try {
+        // Создаём пользователя в Firebase Auth
+        final UserCredential userCredential =
+        await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: email,
+          password: password,
+        );
+
+        // Сохраняем дополнительные данные в Firebase Realtime Database
+        final String userId = userCredential.user!.uid;
+        await FirebaseDatabase.instance.ref().child('users').child(userId).set({
+          'nickname': nickname,
+          'email': email,
+          'score': 0, // Начальный счет
+          'wordsGuessed': 0, // Количество угаданных слов
+          'attempts': [] // Пустой массив для попыток
+        });
+
+        // Уведомляем пользователя об успешной регистрации
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Регистрация прошла успешно!')),
+        );
+
+        // Переходим на экран входа
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => LoginScreen()),
+        );
+      } on FirebaseAuthException catch (e) {
+        String errorMessage = 'Ошибка регистрации';
+        if (e.code == 'email-already-in-use') {
+          errorMessage = 'Email уже зарегистрирован';
+        } else if (e.code == 'weak-password') {
+          errorMessage = 'Слишком слабый пароль';
+        } else if (e.code == 'invalid-email') {
+          errorMessage = 'Некорректный email';
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(errorMessage)),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка: $e')),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: backgroundColor, // Цвет AppBar
-        elevation: 0, // Убираем тень под AppBar
+        backgroundColor: backgroundColor,
+        elevation: 0,
       ),
       body: Container(
-        color: backgroundColor, // Задний фон
+        color: backgroundColor,
         padding: const EdgeInsets.all(16.0),
         child: Form(
-          key: _formKey, // Ключ для формы
+          key: _formKey,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Заголовок "Регистрация" в центре экрана
               Text(
                 'Регистрация',
                 style: TextStyle(
                   color: textColor,
-                  fontSize: 32, // Увеличиваем размер шрифта
-                  fontWeight: FontWeight.bold, // Жирный шрифт
+                  fontSize: 32,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
               SizedBox(height: 20),
-              // Иконка регистрации
               Icon(
-                Icons.person_add_alt_1, // Иконка регистрации
-                size: 100, // Увеличенный размер
+                Icons.person_add_alt_1,
+                size: 100,
                 color: textColor,
               ),
               SizedBox(height: 20),
@@ -101,9 +152,6 @@ class RegisterScreen extends StatelessWidget {
                 validator: (value) {
                   if (value == null || value.isEmpty) {
                     return 'Пожалуйста, введите email';
-                  }
-                  if (!emailRegex.hasMatch(value)) {
-                    return 'Введите корректный email';
                   }
                   return null;
                 },
@@ -170,38 +218,14 @@ class RegisterScreen extends StatelessWidget {
               ),
               SizedBox(height: 24.0),
               ElevatedButton(
-                onPressed: () async {
-                  // Проверка валидации формы
-                  if (_formKey.currentState!.validate()) {
-                    final nickname = _nicknameController.text.trim();
-                    final email = _emailController.text.trim();
-                    final password = _passwordController.text.trim();
-
-                    if (await UserStorage.isNicknameOrEmailRegistered(
-                        nickname, email)) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                            content:
-                            Text('Никнейм или email уже зарегистрирован')),
-                      );
-                      return;
-                    }
-
-                    await UserStorage.saveUser(nickname, email, password);
-                    // Переход на экран входа после успешной регистрации
-                    Navigator.pushReplacement(
-                      context,
-                      MaterialPageRoute(builder: (context) => LoginScreen()),
-                    );
-                  }
-                },
+                onPressed: _registerUser,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: buttonColor,
-                  foregroundColor: textColor, // Белый цвет текста кнопки
+                  foregroundColor: textColor,
                   padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                   textStyle: TextStyle(
-                    fontSize: 18, // Увеличиваем размер шрифта
-                    fontWeight: FontWeight.bold, // Жирный шрифт
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
                 child: Text('Зарегистрироваться'),
@@ -217,9 +241,9 @@ class RegisterScreen extends StatelessWidget {
                 child: Text(
                   'Уже есть аккаунт? Войдите',
                   style: TextStyle(
-                    color: textColor, // Белый цвет текста
-                    fontSize: 16, // Увеличиваем размер шрифта
-                    fontWeight: FontWeight.bold, // Жирный шрифт
+                    color: textColor,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
