@@ -1,0 +1,49 @@
+{
+  "project_info": {
+    "project_number": "1007179935613",
+    "firebase_url": "https://wordle-af719-default-rtdb.firebaseio.com",
+    "project_id": "wordle-af719",
+    "storage_bucket": "wordle-af719.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1007179935613:android:6dab1b58038381c64ce614",
+        "android_client_info": {
+          "package_name": "com.example.wordle"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD02HWnOjh7sP5W3XJifMgXXye7RQU6y70"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1007179935613:android:35bebe47fdd0b60c4ce614",
+        "android_client_info": {
+          "package_name": "com.example.wordle_clone"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD02HWnOjh7sP5W3XJifMgXXye7RQU6y70"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
